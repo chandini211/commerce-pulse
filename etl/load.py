@@ -1,34 +1,25 @@
-import os
 
+import os
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, URL
 from dotenv import load_dotenv
 
 
 def main():
-
-    # -----------------------------
-    # Load Environment Variables
-    # -----------------------------
     load_dotenv()
 
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_NAME = os.getenv("DB_NAME")
-
-    # -----------------------------
-    # Database Connection
-    # -----------------------------
-    engine = create_engine(
-        f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    connection_url = URL.create(
+        drivername="postgresql+psycopg2",
+        username=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        database=os.getenv("DB_NAME")
     )
 
-    # -----------------------------
-    # Processed Data Path
-    # -----------------------------
-    DATA_PATH = "data/processed"
+    engine = create_engine(connection_url)
+
+    data_path = "data/processed"
 
     files = {
         "customers": "customers.csv",
@@ -39,26 +30,23 @@ def main():
         "reviews": "reviews.csv"
     }
 
-    # -----------------------------
-    # Load CSV Files into PostgreSQL
-    # -----------------------------
     for table_name, file_name in files.items():
-
         print(f"\nLoading {table_name}...")
 
-        df = pd.read_csv(f"{DATA_PATH}/{file_name}")
+        df = pd.read_csv(f"{data_path}/{file_name}")
 
         df.to_sql(
             name=table_name,
             con=engine,
+            schema="public",
             if_exists="replace",
             index=False
         )
 
-        print(f"{table_name} Loaded Successfully")
-        print(f"Rows Loaded: {len(df)}")
+        print(f"{table_name} loaded: {len(df)} rows")
 
-    print("\nAll Tables Loaded Successfully!")
+    engine.dispose()
+    print("\nAll tables loaded successfully!")
 
 
 if __name__ == "__main__":
